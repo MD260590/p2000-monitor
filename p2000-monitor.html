@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>P2000 Monitor</title>
+
+<style>
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background: black;
+        color: white;
+        font-family: Arial, Helvetica, sans-serif;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    #app {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* KLOK */
+    #clock-view {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+    }
+
+    #clock-time {
+        font-size: 16vw;
+        font-weight: bold;
+    }
+
+    /* ALARM */
+    #alarm-view {
+        display: none;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #melding-box {
+        border: 4px solid red; /* standaard rood, lifeliner -> geel via JS */
+        border-radius: 16px;
+        padding: 30px 40px;
+        max-width: 80vw;
+        background: rgba(0, 0, 0, 0.8);
+        text-align: center;
+    }
+
+    .melding-line {
+        font-size: 2.4vw;
+        margin-bottom: 10px;
+        word-wrap: break-word;
+    }
+
+    #melding-line1,
+    #melding-line2 {
+        font-size: 4vw;
+    }
+
+    #melding-line1 {
+        font-weight: bold;
+        margin-bottom: 18px;
+    }
+
+    #melding-time {
+        margin-top: 10px;
+        opacity: 0.85;
+    }
+
+    #error {
+        position: fixed;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #ff4444;
+        font-size: 16px;
+        min-height: 20px;
+    }
+
+    /* STATUS ICON LINKS ONDER */
+    #status-indicator {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        font-size: 28px;
+        opacity: 0.9;
+    }
+
+    #status-icon {
+        transition: transform 0.2s ease;
+    }
+
+    /* TESTKNOPPEN RECHTS ONDER */
+    .test-btn {
+        position: fixed;
+        bottom: 20px;
+        padding: 10px 18px;
+        font-size: 16px;
+        border-radius: 999px;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        color: #ffffff;
+        opacity: 0.85;
+        box-shadow: 0 0 10px rgba(0,0,0,0.6);
+    }
+
+    #test-normal {
+        right: 120px;
+        background: #ff0000; /* rood */
+    }
+
+    #test-lifeliner {
+        right: 20px;
+        background: #ffcc00; /* geel */
+        color: #000000;
+    }
+
+    #test-normal:hover,
+    #test-lifeliner:hover {
+        opacity: 1;
+    }
+
+    /* HISTORIE KNOP MIDDEN ONDER */
+    #history-button {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 18px;
+        font-size: 16px;
+        border-radius: 999px;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        background: #444;
+        color: #ffffff;
+        opacity: 0.85;
+        box-shadow: 0 0 10px rgba(0,0,0,0.6);
+    }
+
+    #history-button:hover {
+        opacity: 1;
+    }
+
+    /* HISTORIE OVERLAY */
+    #history-view {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.95);
+        color: #ffffff;
+        display: none;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 40px;
+        z-index: 50;
+    }
+
+    #history-container {
+        width: 80vw;
+        max-width: 1000px;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    #history-title {
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    #history-close {
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        background: #666;
+        color: #fff;
+    }
+
+    #history-close:hover {
+        background: #888;
+    }
+
+    #history-list {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #444;
+        overflow-y: auto;
+    }
+
+    .history-item {
+        border-left: 5px solid #ff0000;
+        padding: 8px 10px;
+        margin-bottom: 6px;
+        background: #111;
+        border-radius: 6px;
+    }
+
+    .history-time {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+
+    .history-title {
+        font-weight: bold;
+        margin-top: 2px;
+    }
+
+    .history-body {
+        font-size: 0.95rem;
+        margin-top: 2px;
+    }
+
+    .history-units {
+        font-size: 0.85rem;
+        opacity: 0.8;
+        margin-top: 2px;
+    }
+
+    @media (max-width: 900px) {
+        #clock-time { font-size: 22vw; }
+
+        #melding-box {
+            max-width: 95vw;
+            padding: 20px;
+        }
+
+        #melding-line1,
+        #melding-line2 {
+            font-size: 6vw;
+        }
+
+        .melding-line {
+            font-size: 4.5vw;
+        }
+
+        .test-btn,
+        #history-button {
+            font-size: 14px;
+            padding: 8px 14px;
+        }
+
+        #status-indicator {
+            font-size: 24px;
+        }
+    }
+</style>
+</head>
+
+<body>
+<div id="app">
+    <!-- Stand-by: klok -->
+    <div id="clock-view">
+        <div id="clock-time">00:00:00</div>
+    </div>
+
+    <!-- Alarm: melding -->
+    <div id="alarm-view">
+        <div id="melding-box">
+            <div id="melding-line1" class="melding-line">Melding wordt geladen…</div>
+            <div id="melding-line2" class="melding-line"></div>
+            <div id="melding-line3" class="melding-line"></div>
+            <div id="melding-unit" class="melding-line"></div>
+            <div id="melding-time" class="melding-line"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Status links onderin – alleen icoon -->
+<div id="status-indicator">
+    <span id="status-icon">❌</span>
+</div>
+
+<!-- Testknoppen rechts onderin -->
+<button id="test-normal" class="test-btn" type="button">test</button>
+<button id="test-lifeliner" class="test-btn" type="button">test</button>
+
+<!-- Historie knop midden onder -->
+<button id="history-button" type="button">Historie</button>
+
+<!-- Historie overlay -->
+<div id="history-view">
+    <div id="history-container">
+        <div id="history-header">
+            <div id="history-title">Historie meldingen</div>
+            <button id="history-close" type="button">Terug</button>
+        </div>
+        <div id="history-list"></div>
+    </div>
+</div>
+
+<div id="error"></div>
+
+<script>
+(function() {
+    // Feed-URL (eventueel via ?feed=)
+    function getFeedUrl() {
+        var params = new URLSearchParams(window.location.search);
+        var custom = params.get("feed");
+        return custom || "http://localhost:3000/p2000.json";
+    }
+
+    var FEED = getFeedUrl();
+
+    // Draait deze monitor op lifeliner-feed?
+    var isLifelinerMode =
+        FEED.includes("lifeliners.json") ||
+        FEED.includes("f2f39a77");
+
+    // Twee geluiden
+    var alertSoundNormal    = new Audio("alert.mp3");
+    var alertSoundLifeliner = new Audio("alert-lifeliner.mp3");
+
+    var lastId     = null;
+    var hideTimer  = null;
+
+    var historyEntries = [];
+    var MAX_HISTORY = 100;
+
+    function debug(msg) {
+        console.log("[DEBUG]", msg);
+    }
+
+    function setError(msg) {
+        var el = document.getElementById("error");
+        if (el) el.textContent = msg || "";
+    }
+
+    function setStatus(online) {
+        var icon = document.getElementById("status-icon");
+        if (!icon) return;
+
+        if (online) {
+            icon.textContent = "✔️";
+            icon.style.color = "#00ff66";
+        } else {
+            icon.textContent = "❌";
+            icon.style.color = "#ff4444";
+        }
+    }
+
+    function formatPubTime(pubDateString) {
+        try {
+            var d = new Date(pubDateString);
+            if (isNaN(d.getTime())) {
+                var match = pubDateString.match(/(\d{2}:\d{2}:\d{2})/);
+                return match ? match[1] : pubDateString;
+            }
+            var h = d.getHours().toString().padStart(2,"0");
+            var m = d.getMinutes().toString().padStart(2,"0");
+            var s = d.getSeconds().toString().padStart(2,"0");
+            return h + ":" + m + ":" + s;
+        } catch (e) {
+            debug("formatPubTime fout: " + e);
+            return pubDateString;
+        }
+    }
+
+    function parseTitleToLines(title) {
+        var t = (title || "").trim();
+        if (!t) {
+            return { line1: "(geen titel)", line2: "", line3: "", units: "" };
+        }
+
+        var parts = t.split(/\s+/);
+        if (parts.length < 4) {
+            return { line1: t, line2: "", line3: "", units: "" };
+        }
+
+        var p0 = parts[0] || "";
+        var p1 = parts[1] || "";
+        var p2 = parts[2] || "";
+        var line1 = (p0 + p1).trim() + " " + p2;
+
+        var body = parts.slice(3);
+
+        var units = [];
+        while (body.length > 0) {
+            var last = body[body.length - 1];
+            if (/^\d{5,}$/.test(last)) {
+                units.unshift(last);
+                body.pop();
+            } else {
+                break;
+            }
+        }
+
+        if (body.length <= 2) {
+            return {
+                line1: line1,
+                line2: body.join(" "),
+                line3: "",
+                units: units.join(" ")
+            };
+        }
+
+        var locTokens  = body.slice(-2);
+        var descTokens = body.slice(0, body.length - 2);
+
+        var line2 = descTokens.join(" ");
+        var line3 = locTokens.join(" ");
+
+        return {
+            line1: line1,
+            line2: line2,
+            line3: line3,
+            units: units.join(" ")
+        };
+    }
+
+    function showClock() {
+        document.getElementById("clock-view").style.display = "flex";
+        document.getElementById("alarm-view").style.display = "none";
+    }
+
+    function showAlarm() {
+        document.getElementById("clock-view").style.display = "none";
+        document.getElementById("alarm-view").style.display = "flex";
+    }
+
+    function startHideTimer() {
+        if (hideTimer) {
+            clearTimeout(hideTimer);
+        }
+        hideTimer = setTimeout(function() {
+            showClock();
+        }, 5 * 60 * 1000);
+    }
+
+    // HISTORIE HANDLING
+    function addToHistory(entry) {
+        historyEntries.unshift(entry);
+        if (historyEntries.length > MAX_HISTORY) {
+            historyEntries.pop();
+        }
+        renderHistoryItem(entry);
+    }
+
+    function renderHistoryItem(entry) {
+        var list = document.getElementById("history-list");
+        if (!list) return;
+
+        var itemEl = document.createElement("div");
+        itemEl.className = "history-item";
+        itemEl.style.borderLeftColor = entry.isLifeliner ? "#ffcc00" : "#ff0000";
+
+        var timeEl = document.createElement("div");
+        timeEl.className = "history-time";
+        timeEl.textContent = entry.time;
+
+        var titleEl = document.createElement("div");
+        titleEl.className = "history-title";
+        titleEl.textContent = entry.line1;
+
+        var bodyEl = document.createElement("div");
+        bodyEl.className = "history-body";
+        bodyEl.textContent = [entry.line2, entry.line3].filter(Boolean).join(" · ");
+
+        var unitsEl = document.createElement("div");
+        unitsEl.className = "history-units";
+        if (entry.units) {
+            unitsEl.textContent = "Eenheid: " + entry.units;
+        } else {
+            unitsEl.textContent = "";
+        }
+
+        itemEl.appendChild(timeEl);
+        itemEl.appendChild(titleEl);
+        if (bodyEl.textContent) itemEl.appendChild(bodyEl);
+        if (unitsEl.textContent) itemEl.appendChild(unitsEl);
+
+        if (list.firstChild) {
+            list.insertBefore(itemEl, list.firstChild);
+        } else {
+            list.appendChild(itemEl);
+        }
+    }
+
+    function openHistory() {
+        document.getElementById("history-view").style.display = "flex";
+        document.getElementById("clock-view").style.display = "none";
+        document.getElementById("alarm-view").style.display = "none";
+    }
+
+    function closeHistory() {
+        document.getElementById("history-view").style.display = "none";
+        showClock();
+    }
+
+    function pollFeed() {
+        fetch(FEED)
+            .then(function(res){
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                setStatus(true);
+                return res.json();
+            })
+            .then(function(data) {
+                setError("");
+
+                var items = data.items || [];
+                if (items.length === 0) {
+                    debug("Geen items in feed.");
+                    return;
+                }
+
+                var item   = items[0];
+                var parsed = parseTitleToLines(item.title || "");
+
+                document.getElementById("melding-line1").textContent = parsed.line1;
+                document.getElementById("melding-line2").textContent = parsed.line2;
+                document.getElementById("melding-line3").textContent = parsed.line3;
+                if (parsed.units) {
+                    document.getElementById("melding-unit").textContent =
+                        "Eenheid: " + parsed.units;
+                } else {
+                    document.getElementById("melding-unit").textContent = "";
+                }
+
+                var tijdKort = formatPubTime(item.pubDate || "");
+                document.getElementById("melding-time").textContent = tijdKort;
+
+                var guid = item.raw && item.raw.guid && item.raw.guid["#text"];
+                var identifierFirst = guid || item.pubDate || item.title || null;
+
+                if (!identifierFirst) {
+                    debug("Geen identifier gevonden voor eerste item.");
+                    return;
+                }
+
+                // EERSTE KEER: laatste 20 meldingen in historie zetten, geen alarm tonen
+                if (!lastId) {
+                    var initItems = items.slice(0, 20);
+                    for (var i = initItems.length - 1; i >= 0; i--) {
+                        var it = initItems[i];
+                        var parsedInit = parseTitleToLines(it.title || "");
+                        var tijdInit   = formatPubTime(it.pubDate || "");
+                        var guidInit   = it.raw && it.raw.guid && it.raw.guid["#text"];
+                        var idInit     = guidInit || it.pubDate || it.title || null;
+                        if (!idInit) continue;
+
+                        addToHistory({
+                            id: idInit,
+                            line1: parsedInit.line1,
+                            line2: parsedInit.line2,
+                            line3: parsedInit.line3,
+                            units: parsedInit.units,
+                            time: tijdInit,
+                            isLifeliner: isLifelinerMode
+                        });
+                    }
+
+                    lastId = identifierFirst;
+                    debug("Initiele historie gevuld (max 20), geen alarm getoond.");
+                    return;
+                }
+
+                // Nieuwe melding?
+                if (identifierFirst !== lastId) {
+                    lastId = identifierFirst;
+                    debug("Nieuwe melding gedetecteerd.");
+
+                    // Altijd aan historie toevoegen
+                    addToHistory({
+                        id: identifierFirst,
+                        line1: parsed.line1,
+                        line2: parsed.line2,
+                        line3: parsed.line3,
+                        units: parsed.units,
+                        time: tijdKort,
+                        isLifeliner: isLifelinerMode
+                    });
+
+                    // Als historie open is -> automatisch sluiten
+                    document.getElementById("history-view").style.display = "none";
+
+                    var box = document.getElementById("melding-box");
+                    if (box) {
+                        box.style.borderColor = isLifelinerMode ? "#ffcc00" : "red";
+                    }
+
+                    showAlarm();
+
+                    var sound = isLifelinerMode ? alertSoundLifeliner : alertSoundNormal;
+                    if (!document.hidden) {
+                        sound.currentTime = 0;
+                        sound.play().catch(function(){});
+                    }
+
+                    startHideTimer();
+                }
+            })
+            .catch(function(err) {
+                debug("Backend niet bereikbaar: " + err);
+                setError("Backend niet bereikbaar. Controleer de server.");
+                setStatus(false);
+            });
+    }
+
+    function updateClock() {
+        var now = new Date();
+        var h = now.getHours().toString().padStart(2,"0");
+        var m = now.getMinutes().toString().padStart(2,"0");
+        var s = now.getSeconds().toString().padStart(2,"0");
+        document.getElementById("clock-time").textContent = h + ":" + m + ":" + s;
+    }
+
+    // TEST brandweer (rode)
+    function triggerTestNormal() {
+        var line1 = "P1 MONITOR";
+        var line2 = "UMC UTRECHT";
+
+        document.getElementById("melding-line1").textContent = line1;
+        document.getElementById("melding-line2").textContent = line2;
+        document.getElementById("melding-line3").textContent = "";
+        document.getElementById("melding-unit").textContent = "";
+
+        var now = new Date();
+        var h = now.getHours().toString().padStart(2,"0");
+        var m = now.getMinutes().toString().padStart(2,"0");
+        var s = now.getSeconds().toString().padStart(2,"0");
+        var tijd = h + ":" + m + ":" + s;
+        document.getElementById("melding-time").textContent = tijd;
+
+        var box = document.getElementById("melding-box");
+        if (box) {
+            box.style.borderColor = "red";
+        }
+
+        // Historie vullen
+        var id = "TEST-NORMAL-" + Date.now();
+        addToHistory({
+            id: id,
+            line1: line1,
+            line2: line2,
+            line3: "",
+            units: "",
+            time: tijd,
+            isLifeliner: false
+        });
+
+        // Sluit historie als die open staat
+        document.getElementById("history-view").style.display = "none";
+
+        showAlarm();
+        startHideTimer();
+
+        if (!document.hidden) {
+            alertSoundNormal.currentTime = 0;
+            alertSoundNormal.play().catch(function(){});
+        }
+
+        setStatus(true);
+        lastId = id;
+    }
+
+    // TEST lifeliner (gele)
+    function triggerTestLifeliner() {
+        var line1 = "P1 MONITOR";
+        var line2 = "UMC UTRECHT";
+
+        document.getElementById("melding-line1").textContent = line1;
+        document.getElementById("melding-line2").textContent = line2;
+        document.getElementById("melding-line3").textContent = "";
+        document.getElementById("melding-unit").textContent = "";
+
+        var now = new Date();
+        var h = now.getHours().toString().padStart(2,"0");
+        var m = now.getMinutes().toString().padStart(2,"0");
+        var s = now.getSeconds().toString().padStart(2,"0");
+        var tijd = h + ":" + m + ":" + s;
+        document.getElementById("melding-time").textContent = tijd;
+
+        var box = document.getElementById("melding-box");
+        if (box) {
+            box.style.borderColor = "#ffcc00";
+        }
+
+        // Historie vullen
+        var id = "TEST-LIFELINER-" + Date.now();
+        addToHistory({
+            id: id,
+            line1: line1,
+            line2: line2,
+            line3: "",
+            units: "",
+            time: tijd,
+            isLifeliner: true
+        });
+
+        // Sluit historie als die open staat
+        document.getElementById("history-view").style.display = "none";
+
+        showAlarm();
+        startHideTimer();
+
+        if (!document.hidden) {
+            alertSoundLifeliner.currentTime = 0;
+            alertSoundLifeliner.play().catch(function(){});
+        }
+
+        setStatus(true);
+        lastId = id;
+    }
+
+    // Start
+    showClock();
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    pollFeed();
+    setInterval(pollFeed, 5000);
+
+    // Lifeliner-mode: init border kleur
+    (function initBorder() {
+        var box = document.getElementById("melding-box");
+        if (box && isLifelinerMode) {
+            box.style.borderColor = "#ffcc00";
+        }
+    })();
+
+    // Knoppen koppelen
+    document.getElementById("test-normal")
+        .addEventListener("click", triggerTestNormal);
+    document.getElementById("test-lifeliner")
+        .addEventListener("click", triggerTestLifeliner);
+    document.getElementById("history-button")
+        .addEventListener("click", openHistory);
+    document.getElementById("history-close")
+        .addEventListener("click", closeHistory);
+})();
+</script>
+
+</body>
+</html>
