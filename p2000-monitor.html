@@ -44,7 +44,6 @@
         display: none;
         width: 100%;
         height: 100%;
-        display: flex;
         align-items: center;
         justify-content: center;
     }
@@ -315,16 +314,32 @@
 
 <script>
 (function() {
-    // Feed-URL (eventueel via ?feed=)
+    // Feed-URL bepalen (werkt lokaal én op Render)
     function getFeedUrl() {
         var params = new URLSearchParams(window.location.search);
         var custom = params.get("feed");
-        return custom || "http://localhost:3000/p2000.json";
+        var origin = window.location.origin; // bv. http://localhost:3000 of https://p2000-monitor.onrender.com
+
+        if (custom) {
+            // Volledige URL meegegeven?
+            if (custom.startsWith("http://") || custom.startsWith("https://")) {
+                return custom;
+            }
+            // Relatief pad als /lifeliners.json
+            if (custom.startsWith("/")) {
+                return origin + custom;
+            }
+            // Anders behandelen als pad: lifeliners.json
+            return origin + "/" + custom;
+        }
+
+        // Standaard: regio-feed op dezelfde server
+        return origin + "/p2000.json";
     }
 
     var FEED = getFeedUrl();
 
-    // Draait deze monitor op lifeliner-feed?
+    // Draait deze monitor in lifeliner-modus?
     var isLifelinerMode =
         FEED.includes("lifeliners.json") ||
         FEED.includes("f2f39a77");
@@ -449,7 +464,7 @@
         }, 5 * 60 * 1000);
     }
 
-    // HISTORIE HANDLING
+    // HISTORIE
     function addToHistory(entry) {
         historyEntries.unshift(entry);
         if (historyEntries.length > MAX_HISTORY) {
@@ -541,7 +556,7 @@
                 var tijdKort = formatPubTime(item.pubDate || "");
                 document.getElementById("melding-time").textContent = tijdKort;
 
-                var guid = item.raw && item.raw.guid && item.raw.guid["#text"];
+                var guid = item.raw && item.raw.guid && (item.raw.guid["#text"] || item.raw.guid);
                 var identifierFirst = guid || item.pubDate || item.title || null;
 
                 if (!identifierFirst) {
@@ -549,14 +564,14 @@
                     return;
                 }
 
-                // EERSTE KEER: laatste 20 meldingen in historie zetten, geen alarm tonen
+                // EERSTE KEER: laatste 20 meldingen alleen in historie
                 if (!lastId) {
                     var initItems = items.slice(0, 20);
                     for (var i = initItems.length - 1; i >= 0; i--) {
                         var it = initItems[i];
                         var parsedInit = parseTitleToLines(it.title || "");
                         var tijdInit   = formatPubTime(it.pubDate || "");
-                        var guidInit   = it.raw && it.raw.guid && it.raw.guid["#text"];
+                        var guidInit   = it.raw && it.raw.guid && (it.raw.guid["#text"] || it.raw.guid);
                         var idInit     = guidInit || it.pubDate || it.title || null;
                         if (!idInit) continue;
 
@@ -581,7 +596,6 @@
                     lastId = identifierFirst;
                     debug("Nieuwe melding gedetecteerd.");
 
-                    // Altijd aan historie toevoegen
                     addToHistory({
                         id: identifierFirst,
                         line1: parsed.line1,
@@ -644,11 +658,8 @@
         document.getElementById("melding-time").textContent = tijd;
 
         var box = document.getElementById("melding-box");
-        if (box) {
-            box.style.borderColor = "red";
-        }
+        if (box) box.style.borderColor = "red";
 
-        // Historie vullen
         var id = "TEST-NORMAL-" + Date.now();
         addToHistory({
             id: id,
@@ -660,7 +671,6 @@
             isLifeliner: false
         });
 
-        // Sluit historie als die open staat
         document.getElementById("history-view").style.display = "none";
 
         showAlarm();
@@ -693,11 +703,8 @@
         document.getElementById("melding-time").textContent = tijd;
 
         var box = document.getElementById("melding-box");
-        if (box) {
-            box.style.borderColor = "#ffcc00";
-        }
+        if (box) box.style.borderColor = "#ffcc00";
 
-        // Historie vullen
         var id = "TEST-LIFELINER-" + Date.now();
         addToHistory({
             id: id,
@@ -709,7 +716,6 @@
             isLifeliner: true
         });
 
-        // Sluit historie als die open staat
         document.getElementById("history-view").style.display = "none";
 
         showAlarm();
