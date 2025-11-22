@@ -4,7 +4,7 @@ const path = require("path");
 
 const app = express();
 
-// Parser met browser-achtige headers om 406 te voorkomen
+// Parser met browser-achtige headers
 const parser = new Parser({
   requestOptions: {
     headers: {
@@ -13,20 +13,29 @@ const parser = new Parser({
         "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Accept":
         "application/rss+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.7"
-    }
+    },
+    timeout: 15000
   }
 });
 
 // ======= INSTELLINGEN =======
-const REGION_RSS_URL = "https://www.alarmeringdroid.nl/rss/f2729641";    // Regio-feed
-const LIFELINER_RSS_URL = "https://www.alarmeringdroid.nl/rss/f2f39a77"; // Lifeliners-feed
+
+// NIEUWE BRANDWEERFEED (Utrecht, alarmeringen.nl)
+const REGION_RSS_URL =
+  "https://www.alarmeringen.nl/feeds/region/utrecht/brandweer.rss";
+
+// LIFELINERS – voorlopig nog oude feed
+const LIFELINER_RSS_URL =
+  "https://www.alarmeringdroid.nl/rss/f2f39a77";
 
 const PORT = process.env.PORT || 3000;
 
-// ======= STATIC FILES =======
+// ======= STATIC FILES & ROOT =======
+
+// serve alle bestanden uit deze map (html/mp3/js)
 app.use(express.static(__dirname));
 
-// Rootpagina (monitor)
+// root toont altijd de monitor
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "p2000-monitor.html"));
 });
@@ -43,10 +52,11 @@ function mapItem(item) {
       "",
     pubDate: item.pubDate || "",
     link: item.link || "",
-    raw: item,
+    raw: item
   };
 }
 
+// Utrecht-plaatsen voor lifeliner-filter
 const UTRECHT_PLACES = [
   "utrecht",
   "amersfoort",
@@ -82,7 +92,7 @@ function isInProvinceUtrecht(item) {
 
 // ======= ENDPOINTS =======
 
-// Regiofeed
+// BRANDWEER (REGIO) – via alarmeringen.nl
 app.get("/p2000.json", async (req, res) => {
   try {
     const feed = await parser.parseURL(REGION_RSS_URL);
@@ -95,7 +105,7 @@ app.get("/p2000.json", async (req, res) => {
       items
     });
   } catch (err) {
-    console.error("Fout bij ophalen regio-RSS:", err);
+    console.error("Fout bij ophalen regio-RSS (brandweer):", err);
     res.status(500).json({
       error: "Kon regio RSS niet ophalen",
       details: String(err.message || err)
@@ -103,7 +113,7 @@ app.get("/p2000.json", async (req, res) => {
   }
 });
 
-// Lifeliners (alleen provincie Utrecht)
+// LIFELINERS – nog oude feed, gefilterd op provincie Utrecht
 app.get("/lifeliners.json", async (req, res) => {
   try {
     const feed = await parser.parseURL(LIFELINER_RSS_URL);

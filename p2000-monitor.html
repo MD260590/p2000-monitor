@@ -49,7 +49,7 @@
     }
 
     #melding-box {
-        border: 4px solid red; /* standaard rood, lifeliner -> geel via JS */
+        border: 4px solid red;
         border-radius: 16px;
         padding: 30px 40px;
         max-width: 80vw;
@@ -118,12 +118,12 @@
 
     #test-normal {
         right: 120px;
-        background: #ff0000; /* rood */
+        background: #ff0000;
     }
 
     #test-lifeliner {
         right: 20px;
-        background: #ffcc00; /* geel */
+        background: #ffcc00;
         color: #000000;
     }
 
@@ -270,12 +270,10 @@
 
 <body>
 <div id="app">
-    <!-- Stand-by: klok -->
     <div id="clock-view">
         <div id="clock-time">00:00:00</div>
     </div>
 
-    <!-- Alarm: melding -->
     <div id="alarm-view">
         <div id="melding-box">
             <div id="melding-line1" class="melding-line">Melding wordt geladen…</div>
@@ -287,19 +285,15 @@
     </div>
 </div>
 
-<!-- Status links onderin – alleen icoon -->
 <div id="status-indicator">
     <span id="status-icon">❌</span>
 </div>
 
-<!-- Testknoppen rechts onderin -->
 <button id="test-normal" class="test-btn" type="button">test</button>
 <button id="test-lifeliner" class="test-btn" type="button">test</button>
 
-<!-- Historie knop midden onder -->
 <button id="history-button" type="button">Historie</button>
 
-<!-- Historie overlay -->
 <div id="history-view">
     <div id="history-container">
         <div id="history-header">
@@ -314,37 +308,30 @@
 
 <script>
 (function() {
-    // Feed-URL bepalen (werkt lokaal én op Render)
     function getFeedUrl() {
         var params = new URLSearchParams(window.location.search);
         var custom = params.get("feed");
-        var origin = window.location.origin; // bv. http://localhost:3000 of https://p2000-monitor.onrender.com
+        var origin = window.location.origin;
 
         if (custom) {
-            // Volledige URL meegegeven?
             if (custom.startsWith("http://") || custom.startsWith("https://")) {
                 return custom;
             }
-            // Relatief pad als /lifeliners.json
             if (custom.startsWith("/")) {
                 return origin + custom;
             }
-            // Anders behandelen als pad: lifeliners.json
             return origin + "/" + custom;
         }
 
-        // Standaard: regio-feed op dezelfde server
         return origin + "/p2000.json";
     }
 
     var FEED = getFeedUrl();
 
-    // Draait deze monitor in lifeliner-modus?
     var isLifelinerMode =
         FEED.includes("lifeliners.json") ||
         FEED.includes("f2f39a77");
 
-    // Twee geluiden
     var alertSoundNormal    = new Audio("alert.mp3");
     var alertSoundLifeliner = new Audio("alert-lifeliner.mp3");
 
@@ -464,7 +451,6 @@
         }, 5 * 60 * 1000);
     }
 
-    // HISTORIE
     function addToHistory(entry) {
         historyEntries.unshift(entry);
         if (historyEntries.length > MAX_HISTORY) {
@@ -564,7 +550,6 @@
                     return;
                 }
 
-                // EERSTE KEER: laatste 20 meldingen alleen in historie
                 if (!lastId) {
                     var initItems = items.slice(0, 20);
                     for (var i = initItems.length - 1; i >= 0; i--) {
@@ -591,7 +576,6 @@
                     return;
                 }
 
-                // Nieuwe melding?
                 if (identifierFirst !== lastId) {
                     lastId = identifierFirst;
                     debug("Nieuwe melding gedetecteerd.");
@@ -606,7 +590,6 @@
                         isLifeliner: isLifelinerMode
                     });
 
-                    // Als historie open is -> automatisch sluiten
                     document.getElementById("history-view").style.display = "none";
 
                     var box = document.getElementById("melding-box");
@@ -640,7 +623,6 @@
         document.getElementById("clock-time").textContent = h + ":" + m + ":" + s;
     }
 
-    // TEST brandweer (rode)
     function triggerTestNormal() {
         var line1 = "P1 MONITOR";
         var line2 = "UMC UTRECHT";
@@ -685,7 +667,6 @@
         lastId = id;
     }
 
-    // TEST lifeliner (gele)
     function triggerTestLifeliner() {
         var line1 = "P1 MONITOR";
         var line2 = "UMC UTRECHT";
@@ -730,7 +711,6 @@
         lastId = id;
     }
 
-    // Start
     showClock();
     updateClock();
     setInterval(updateClock, 1000);
@@ -738,7 +718,6 @@
     pollFeed();
     setInterval(pollFeed, 5000);
 
-    // Lifeliner-mode: init border kleur
     (function initBorder() {
         var box = document.getElementById("melding-box");
         if (box && isLifelinerMode) {
@@ -746,7 +725,6 @@
         }
     })();
 
-    // Knoppen koppelen
     document.getElementById("test-normal")
         .addEventListener("click", triggerTestNormal);
     document.getElementById("test-lifeliner")
